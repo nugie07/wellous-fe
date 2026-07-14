@@ -1,0 +1,11 @@
+services:
+  wellous:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_RECAPTCHA_SITE_KEY: ${VITE_RECAPTCHA_SITE_KEY:-6Ld-U3AsAAAAAM44o5I_JG4c5E59bvh86OndBBt3}
+        VITE_WELLOUS_API_BASE_URL: ${VITE_WELLOUS_API_BASE_URL:-https://wellous-api.lalapan.online}
+    ports:
+      - "8081:80"
+    restart: unless-stopped
