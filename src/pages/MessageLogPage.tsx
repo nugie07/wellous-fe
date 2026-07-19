@@ -256,6 +256,7 @@ export default function MessageLogPage({ onLogout, navigate }: MessageLogPagePro
                   <tr className="border-b border-[#ecf1f5] bg-[#f8fafc] text-[#6e7b8e]">
                     <th className="whitespace-nowrap py-3 px-4 font-medium">Lead ID</th>
                     <th className="whitespace-nowrap py-3 px-4 font-medium">Penerima</th>
+                    <th className="whitespace-nowrap py-3 px-4 font-medium">Provider</th>
                     <th className="whitespace-nowrap py-3 px-4 font-medium">No. Tujuan</th>
                     <th className="whitespace-nowrap py-3 px-4 font-medium">Vendor</th>
                     <th className="whitespace-nowrap py-3 px-4 font-medium">Status</th>
@@ -273,6 +274,11 @@ export default function MessageLogPage({ onLogout, navigate }: MessageLogPagePro
                         <td className="py-3 px-4">
                           <span className={`inline-block rounded-full border px-2.5 py-0.5 text-[12px] font-medium capitalize ${RECIPIENT_STYLE[log.recipient_type] ?? "bg-gray-100 text-gray-600"}`}>
                             {log.recipient_type}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className={`inline-block rounded-full border px-2.5 py-0.5 text-[12px] font-medium uppercase ${log.provider === "waba" ? "bg-indigo-50 text-indigo-700 border-indigo-200" : "bg-teal-50 text-teal-700 border-teal-200"}`}>
+                            {log.provider}
                           </span>
                         </td>
                         <td className="py-3 px-4 font-mono text-[13px]">{log.recipient_number || "-"}</td>
@@ -301,7 +307,7 @@ export default function MessageLogPage({ onLogout, navigate }: MessageLogPagePro
                       </tr>
                       {expandedId === log.id ? (
                         <tr key={`${log.id}-expanded`} className="bg-[#f8fafc]">
-                          <td colSpan={9} className="px-4 py-4">
+                          <td colSpan={10} className="px-4 py-4">
                             <p className="mb-1 text-[12px] font-semibold text-[#5f6e83] uppercase tracking-wide">Isi Pesan</p>
                             <pre className="whitespace-pre-wrap rounded-lg border border-[#e0e7ef] bg-white px-4 py-3 text-[13px] leading-relaxed text-[#2d3441]">{log.message_body}</pre>
                           </td>

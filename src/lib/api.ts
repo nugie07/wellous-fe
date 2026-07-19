@@ -15,6 +15,8 @@ export type ProductItem = {
   message_template?: string
   dealer_message_template?: string
   customer_message_template?: string
+  dealer_template_code?: string
+  customer_template_code?: string
   created_at?: string
 }
 
@@ -26,6 +28,8 @@ export type ProductPayload = {
   message_template?: string
   dealer_message_template?: string
   customer_message_template?: string
+  dealer_template_code?: string
+  customer_template_code?: string
 }
 
 export type VendorItem = {
@@ -411,12 +415,13 @@ export type MessageLogItem = {
 }
 
 export async function fetchMessageLogs(
-  params?: { status?: string; recipient_type?: string; lead_id?: string; page?: number },
+  params?: { status?: string; recipient_type?: string; provider?: string; lead_id?: string; page?: number },
   session?: AuthSession | null
 ) {
   const qs = new URLSearchParams()
   if (params?.status) qs.set("status", params.status)
   if (params?.recipient_type) qs.set("recipient_type", params.recipient_type)
+  if (params?.provider) qs.set("provider", params.provider)
   if (params?.lead_id) qs.set("lead_id", params.lead_id)
   if (params?.page) qs.set("page", String(params.page))
   const query = qs.toString()

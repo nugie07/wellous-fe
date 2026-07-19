@@ -149,6 +149,8 @@ export default function GlobalSettingsPage({ onLogout, navigate }: GlobalSetting
   const [productMessageTemplate, setProductMessageTemplate] = useState("")
   const [productDealerMessageTemplate, setProductDealerMessageTemplate] = useState("")
   const [productCustomerMessageTemplate, setProductCustomerMessageTemplate] = useState("")
+  const [productDealerTemplateCode, setProductDealerTemplateCode] = useState("")
+  const [productCustomerTemplateCode, setProductCustomerTemplateCode] = useState("")
   const [productSearch, setProductSearch] = useState("")
   const [productPage, setProductPage] = useState(1)
   const [vendorDistributionType, setVendorDistributionType] = useState<DistributionType>("by_alphabet")
@@ -163,7 +165,13 @@ export default function GlobalSettingsPage({ onLogout, navigate }: GlobalSetting
   const [wahaSecretKey, setWahaSecretKey] = useState("")
   const [wahaBaseUrl, setWahaBaseUrl] = useState("")
   const [wahaSessionName, setWahaSessionName] = useState("")
-  const [wabaAccessToken, setWabaAccessToken] = useState("")
+  const [whatsappProvider, setWhatsappProvider] = useState<"waha" | "waba">("waha")
+  const [appshdBaseUrl, setAppshdBaseUrl] = useState("")
+  const [appshdApiKey, setAppshdApiKey] = useState("")
+  const [appshdClientId, setAppshdClientId] = useState("")
+  const [appshdSenderId, setAppshdSenderId] = useState("")
+  const [appshdDealerTemplateCode, setAppshdDealerTemplateCode] = useState("")
+  const [appshdCustomerTemplateCode, setAppshdCustomerTemplateCode] = useState("")
   const [defaultMessageTemplate, setDefaultMessageTemplate] = useState("")
   const [savingDefaultMessageTemplate, setSavingDefaultMessageTemplate] = useState(false)
 
@@ -184,7 +192,13 @@ export default function GlobalSettingsPage({ onLogout, navigate }: GlobalSetting
     fetchUsers().then((d) => { if (active) setUsers(d) }).catch(() => undefined).finally(() => { if (active) setLoadingUsers(false) })
     fetchProducts().then((d) => { if (active) setProducts(d) }).catch(() => undefined).finally(() => { if (active) setLoadingProducts(false) })
     fetchVendorConfig().then((d) => { if (active) setVendorDistributionType(d.distribution_type) }).catch(() => undefined)
-    fetchSettings(["gmail_email", "gmail_token", "telegram_token", "waha_secret_access_key", "waha_base_url", "waha_session_name", "waba_access_token", "auto_assign_enabled", "default_message_template"])
+    fetchSettings([
+      "gmail_email", "gmail_token", "telegram_token",
+      "waha_secret_access_key", "waha_base_url", "waha_session_name",
+      "whatsapp_provider", "appshd_base_url", "appshd_api_key", "appshd_client_id",
+      "appshd_sender_id_wa", "appshd_dealer_template_code", "appshd_customer_template_code",
+      "auto_assign_enabled", "default_message_template",
+    ])
       .then((d) => {
         if (!active) return
         setGmailEmail(d.gmail_email ?? "")
@@ -193,7 +207,13 @@ export default function GlobalSettingsPage({ onLogout, navigate }: GlobalSetting
         setWahaSecretKey(d.waha_secret_access_key ?? "")
         setWahaBaseUrl(d.waha_base_url ?? "")
         setWahaSessionName(d.waha_session_name ?? "")
-        setWabaAccessToken(d.waba_access_token ?? "")
+        setWhatsappProvider(d.whatsapp_provider === "waba" ? "waba" : "waha")
+        setAppshdBaseUrl(d.appshd_base_url ?? "")
+        setAppshdApiKey(d.appshd_api_key ?? "")
+        setAppshdClientId(d.appshd_client_id ?? "")
+        setAppshdSenderId(d.appshd_sender_id_wa ?? "")
+        setAppshdDealerTemplateCode(d.appshd_dealer_template_code ?? "")
+        setAppshdCustomerTemplateCode(d.appshd_customer_template_code ?? "")
         setAutoAssignEnabled(d.auto_assign_enabled === "true")
         setDefaultMessageTemplate(d.default_message_template ?? "")
       }).catch(() => undefined)
@@ -334,6 +354,8 @@ export default function GlobalSettingsPage({ onLogout, navigate }: GlobalSetting
     setProductMessageTemplate("")
     setProductDealerMessageTemplate("")
     setProductCustomerMessageTemplate("")
+    setProductDealerTemplateCode("")
+    setProductCustomerTemplateCode("")
     setError("")
     setProductModalOpen(true)
   }
@@ -346,6 +368,8 @@ export default function GlobalSettingsPage({ onLogout, navigate }: GlobalSetting
     setProductMessageTemplate(p.message_template ?? "")
     setProductDealerMessageTemplate(p.dealer_message_template ?? "")
     setProductCustomerMessageTemplate(p.customer_message_template ?? "")
+    setProductDealerTemplateCode(p.dealer_template_code ?? "")
+    setProductCustomerTemplateCode(p.customer_template_code ?? "")
     setError("")
     setProductModalOpen(true)
   }
@@ -384,6 +408,8 @@ export default function GlobalSettingsPage({ onLogout, navigate }: GlobalSetting
         message_template: productMessageTemplate,
         dealer_message_template: productDealerMessageTemplate,
         customer_message_template: productCustomerMessageTemplate,
+        dealer_template_code: productDealerTemplateCode,
+        customer_template_code: productCustomerTemplateCode,
       }
       if (editingProduct) {
         const updated = await updateProduct(editingProduct.id, payload)
@@ -774,28 +800,70 @@ export default function GlobalSettingsPage({ onLogout, navigate }: GlobalSetting
                   </div>
                 </div>
 
-                {/* WAHA */}
+                {/* Active WhatsApp Provider */}
                 <div className="rounded-md border border-[#e0e7ef] bg-white p-5">
-                  <h3 className="text-[16px] font-semibold text-[#2b3340]">WAHA (WhatsApp)</h3>
-                  <p className="mt-1 text-[13px] text-[#6d7888]">Konfigurasi WAHA untuk kirim pesan WhatsApp ke vendor dan customer saat lead di-assign.</p>
-                  <div className="mt-4 max-w-xl space-y-4">
-                    <div><label className="block text-[13px] font-medium text-[#2d3441]">Base URL</label><input type="text" value={wahaBaseUrl} onChange={(e) => setWahaBaseUrl(e.target.value)} className="mt-1 h-10 w-full rounded border border-[#d8e1ea] px-3 text-[14px]" /></div>
-                    <div><label className="block text-[13px] font-medium text-[#2d3441]">Session Name</label><input type="text" value={wahaSessionName} onChange={(e) => setWahaSessionName(e.target.value)} className="mt-1 h-10 w-full rounded border border-[#d8e1ea] px-3 text-[14px]" /></div>
-                    <div><label className="block text-[13px] font-medium text-[#2d3441]">API Key</label><input type="text" value={wahaSecretKey} onChange={(e) => setWahaSecretKey(e.target.value)} className="mt-1 h-10 w-full rounded border border-[#d8e1ea] px-3 text-[14px]" /></div>
-                    <button type="button" disabled={savingSettings} onClick={async () => { await saveSetting("waha_base_url", wahaBaseUrl, ""); await saveSetting("waha_session_name", wahaSessionName, ""); await saveSetting("waha_secret_access_key", wahaSecretKey, "WAHA settings updated.") }} className="rounded bg-[#3f7f8f] h-9 px-4 flex items-center justify-center text-[14px] font-medium text-white hover:bg-[#35707a] disabled:opacity-50">{savingSettings ? "Saving..." : "Save"}</button>
+                  <h3 className="text-[16px] font-semibold text-[#2b3340]">Active WhatsApp Provider</h3>
+                  <p className="mt-1 text-[13px] text-[#6d7888]">Pilih provider yang dipakai untuk kirim pesan WhatsApp saat lead di-assign (berlaku global untuk semua product).</p>
+                  <div className="mt-4 space-y-3">
+                    {(["waha", "waba"] as const).map((p) => (
+                      <label key={p} className="flex cursor-pointer items-start gap-3 rounded border border-[#d8e1ea] p-4">
+                        <input type="radio" checked={whatsappProvider === p} onChange={() => { setWhatsappProvider(p); saveSetting("whatsapp_provider", p, "Active WhatsApp provider updated.") }} className="mt-1 h-4 w-4" />
+                        <span>
+                          <span className="block text-[14px] font-medium text-[#2d3441]">{p === "waha" ? "WAHA (self-hosted)" : "AppSHD (WABA resmi)"}</span>
+                          <span className="block text-[13px] text-[#6d7888]">{p === "waha" ? "WhatsApp Web gateway, mendukung tombol interaktif." : "WhatsApp Business API resmi, butuh template yang sudah disetujui BSP."}</span>
+                        </span>
+                      </label>
+                    ))}
                   </div>
                 </div>
 
-                {/* WABA */}
-                <div className="rounded-md border border-[#e0e7ef] bg-white p-5">
-                  <div className="flex items-center gap-2"><h3 className="text-[16px] font-semibold text-[#2b3340]">WABA</h3><span className="rounded bg-[#3f7f8f] px-2 py-0.5 text-[10px] font-medium text-white">Official WABA API</span></div>
-                  <p className="mt-1 text-[13px] text-[#6d7888]">Konfigurasi WhatsApp Business API resmi.</p>
-                  <div className="mt-4 max-w-md">
-                    <label className="block text-[13px] font-medium text-[#2d3441]">Access Token</label>
-                    <input type="text" value={wabaAccessToken} onChange={(e) => setWabaAccessToken(e.target.value)} className="mt-1 h-10 w-full rounded border border-[#d8e1ea] px-3 text-[14px]" />
-                    <button type="button" disabled={savingSettings} onClick={() => saveSetting("waba_access_token", wabaAccessToken, "WABA token updated.")} className="mt-3 rounded bg-[#3f7f8f] h-9 px-4 flex items-center justify-center text-[14px] font-medium text-white hover:bg-[#35707a] disabled:opacity-50">{savingSettings ? "Saving..." : "Save"}</button>
+                {/* WAHA */}
+                {whatsappProvider === "waha" ? (
+                  <div className="rounded-md border border-[#e0e7ef] bg-white p-5">
+                    <h3 className="text-[16px] font-semibold text-[#2b3340]">WAHA (WhatsApp)</h3>
+                    <p className="mt-1 text-[13px] text-[#6d7888]">Konfigurasi WAHA untuk kirim pesan WhatsApp ke vendor dan customer saat lead di-assign.</p>
+                    <div className="mt-4 max-w-xl space-y-4">
+                      <div><label className="block text-[13px] font-medium text-[#2d3441]">Base URL</label><input type="text" value={wahaBaseUrl} onChange={(e) => setWahaBaseUrl(e.target.value)} className="mt-1 h-10 w-full rounded border border-[#d8e1ea] px-3 text-[14px]" /></div>
+                      <div><label className="block text-[13px] font-medium text-[#2d3441]">Session Name</label><input type="text" value={wahaSessionName} onChange={(e) => setWahaSessionName(e.target.value)} className="mt-1 h-10 w-full rounded border border-[#d8e1ea] px-3 text-[14px]" /></div>
+                      <div><label className="block text-[13px] font-medium text-[#2d3441]">API Key</label><input type="text" value={wahaSecretKey} onChange={(e) => setWahaSecretKey(e.target.value)} className="mt-1 h-10 w-full rounded border border-[#d8e1ea] px-3 text-[14px]" /></div>
+                      <button type="button" disabled={savingSettings} onClick={async () => { await saveSetting("waha_base_url", wahaBaseUrl, ""); await saveSetting("waha_session_name", wahaSessionName, ""); await saveSetting("waha_secret_access_key", wahaSecretKey, "WAHA settings updated.") }} className="rounded bg-[#3f7f8f] h-9 px-4 flex items-center justify-center text-[14px] font-medium text-white hover:bg-[#35707a] disabled:opacity-50">{savingSettings ? "Saving..." : "Save"}</button>
+                    </div>
                   </div>
-                </div>
+                ) : null}
+
+                {/* AppSHD (WABA) */}
+                {whatsappProvider === "waba" ? (
+                  <div className="rounded-md border border-[#e0e7ef] bg-white p-5">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-[16px] font-semibold text-[#2b3340]">AppSHD (WABA)</h3>
+                      <span className="rounded bg-[#3f7f8f] px-2 py-0.5 text-[10px] font-medium text-white">Official WABA API</span>
+                    </div>
+                    <p className="mt-1 text-[13px] text-[#6d7888]">Konfigurasi WhatsApp Business API resmi via BSP AppSHD.</p>
+                    <div className="mt-4 max-w-xl space-y-4">
+                      <div><label className="block text-[13px] font-medium text-[#2d3441]">Base URL</label><input type="text" value={appshdBaseUrl} onChange={(e) => setAppshdBaseUrl(e.target.value)} placeholder="https://api.your-domain.com" className="mt-1 h-10 w-full rounded border border-[#d8e1ea] px-3 text-[14px]" /></div>
+                      <div><label className="block text-[13px] font-medium text-[#2d3441]">API Key</label><input type="text" value={appshdApiKey} onChange={(e) => setAppshdApiKey(e.target.value)} className="mt-1 h-10 w-full rounded border border-[#d8e1ea] px-3 text-[14px]" /></div>
+                      <div><label className="block text-[13px] font-medium text-[#2d3441]">Client ID</label><input type="text" value={appshdClientId} onChange={(e) => setAppshdClientId(e.target.value)} className="mt-1 h-10 w-full rounded border border-[#d8e1ea] px-3 text-[14px]" /></div>
+                      <div><label className="block text-[13px] font-medium text-[#2d3441]">Sender ID (WA)</label><input type="text" value={appshdSenderId} onChange={(e) => setAppshdSenderId(e.target.value)} className="mt-1 h-10 w-full rounded border border-[#d8e1ea] px-3 text-[14px]" /></div>
+                      <div>
+                        <label className="block text-[13px] font-medium text-[#2d3441]">Dealer Template Code (default)</label>
+                        <input type="text" value={appshdDealerTemplateCode} onChange={(e) => setAppshdDealerTemplateCode(e.target.value)} className="mt-1 h-10 w-full rounded border border-[#d8e1ea] px-3 text-[14px]" />
+                      </div>
+                      <div>
+                        <label className="block text-[13px] font-medium text-[#2d3441]">Customer Template Code (default)</label>
+                        <input type="text" value={appshdCustomerTemplateCode} onChange={(e) => setAppshdCustomerTemplateCode(e.target.value)} className="mt-1 h-10 w-full rounded border border-[#d8e1ea] px-3 text-[14px]" />
+                      </div>
+                      <p className="text-[12px] text-[#8a95a3]">Kode template WA yang sudah disetujui BSP AppSHD. Kosongkan jika belum disetujui — pengiriman WABA akan gagal tanpa ini. Bisa di-override per product di form Product.</p>
+                      <button type="button" disabled={savingSettings} onClick={async () => {
+                        await saveSetting("appshd_base_url", appshdBaseUrl, "")
+                        await saveSetting("appshd_api_key", appshdApiKey, "")
+                        await saveSetting("appshd_client_id", appshdClientId, "")
+                        await saveSetting("appshd_sender_id_wa", appshdSenderId, "")
+                        await saveSetting("appshd_dealer_template_code", appshdDealerTemplateCode, "")
+                        await saveSetting("appshd_customer_template_code", appshdCustomerTemplateCode, "AppSHD settings updated.")
+                      }} className="rounded bg-[#3f7f8f] h-9 px-4 flex items-center justify-center text-[14px] font-medium text-white hover:bg-[#35707a] disabled:opacity-50">{savingSettings ? "Saving..." : "Save"}</button>
+                    </div>
+                  </div>
+                ) : null}
 
               </div>
             ) : null}
@@ -860,6 +928,7 @@ export default function GlobalSettingsPage({ onLogout, navigate }: GlobalSetting
                         <thead><tr className="border-b border-[#ecf1f5] bg-[#f8fafc] text-[#6e7b8e]">
                           <th className="whitespace-nowrap py-3 px-4 font-medium">Lead ID</th>
                           <th className="whitespace-nowrap py-3 px-4 font-medium">Penerima</th>
+                          <th className="whitespace-nowrap py-3 px-4 font-medium">Provider</th>
                           <th className="whitespace-nowrap py-3 px-4 font-medium">No. Tujuan</th>
                           <th className="whitespace-nowrap py-3 px-4 font-medium">Vendor</th>
                           <th className="whitespace-nowrap py-3 px-4 font-medium">Status</th>
@@ -874,6 +943,7 @@ export default function GlobalSettingsPage({ onLogout, navigate }: GlobalSetting
                               <tr key={log.id} className="border-b border-[#ecf1f5] text-[#314158] hover:bg-[#fafbfc]">
                                 <td className="py-3 px-4 font-mono font-medium">{log.lead_id}</td>
                                 <td className="py-3 px-4"><span className={`inline-block rounded-full border px-2.5 py-0.5 text-[12px] font-medium capitalize ${LOG_RECIPIENT_STYLE[log.recipient_type] ?? "bg-gray-100 text-gray-600"}`}>{log.recipient_type}</span></td>
+                                <td className="py-3 px-4"><span className={`inline-block rounded-full border px-2.5 py-0.5 text-[12px] font-medium uppercase ${log.provider === "waba" ? "bg-indigo-50 text-indigo-700 border-indigo-200" : "bg-teal-50 text-teal-700 border-teal-200"}`}>{log.provider}</span></td>
                                 <td className="py-3 px-4 font-mono text-[13px]">{log.recipient_number || "-"}</td>
                                 <td className="py-3 px-4 text-[13px]">{log.vendor_name || "-"}</td>
                                 <td className="py-3 px-4"><span className={`inline-block rounded-full border px-2.5 py-0.5 text-[12px] font-medium ${LOG_STATUS_STYLE[log.status] ?? "bg-gray-100 text-gray-600"}`}>{LOG_STATUS_LABEL[log.status] ?? log.status}</span></td>
@@ -884,7 +954,7 @@ export default function GlobalSettingsPage({ onLogout, navigate }: GlobalSetting
                               </tr>
                               {expandedLogId === log.id ? (
                                 <tr key={`${log.id}-exp`} className="bg-[#f8fafc]">
-                                  <td colSpan={9} className="px-4 py-4">
+                                  <td colSpan={10} className="px-4 py-4">
                                     <p className="mb-1 text-[12px] font-semibold uppercase tracking-wide text-[#5f6e83]">Isi Pesan</p>
                                     <pre className="whitespace-pre-wrap rounded border border-[#e0e7ef] bg-white px-4 py-3 text-[13px] leading-relaxed text-[#2d3441]">{log.message_body}</pre>
                                   </td>
@@ -1005,6 +1075,17 @@ export default function GlobalSettingsPage({ onLogout, navigate }: GlobalSetting
                         ))}
                       </div>
                     </div>
+                    <div>
+                      <label className="block text-[13px] font-medium text-[#2d3441]">Dealer Template Code (WABA)</label>
+                      <input type="text" value={productDealerTemplateCode} onChange={(e) => setProductDealerTemplateCode(e.target.value)} className="mt-1 h-10 w-full rounded border border-[#d8e1ea] px-3 font-mono text-[14px]" placeholder="dealer_assigned_lead" />
+                    </div>
+                    <div>
+                      <label className="block text-[13px] font-medium text-[#2d3441]">Customer Template Code (WABA)</label>
+                      <input type="text" value={productCustomerTemplateCode} onChange={(e) => setProductCustomerTemplateCode(e.target.value)} className="mt-1 h-10 w-full rounded border border-[#d8e1ea] px-3 font-mono text-[14px]" placeholder="customer_assigned_lead" />
+                    </div>
+                    <div className="md:col-span-2">
+                      <p className="text-[12px] text-[#8a95a3]">Kode template resmi WABA/AppSHD (bukan teks bebas). Isi hanya jika sudah disetujui BSP — variabel dikirim berurutan sesuai posisi, bukan placeholder <code>{"{{...}}"}</code> di atas. Kosongkan untuk pakai default dari Integration Settings.</p>
+                    </div>
                     {error ? <p className="text-[12px] text-red-600">{error}</p> : null}
                   </div>
                 </div>
@@ -1069,6 +1150,14 @@ export default function GlobalSettingsPage({ onLogout, navigate }: GlobalSetting
                   ) : (
                     <p className="mt-2 text-[14px] text-[#6d7888]">Not set. Backend will use the fallback template.</p>
                   )}
+                </div>
+                <div className="rounded border border-[#edf1f5] p-4">
+                  <p className="text-[12px] font-medium uppercase tracking-wide text-[#5f6e83]">Dealer Template Code (WABA)</p>
+                  <p className="mt-2 font-mono text-[14px] text-[#2d3441]">{viewingProduct.dealer_template_code?.trim() || "Not set. Uses AppSHD default."}</p>
+                </div>
+                <div className="rounded border border-[#edf1f5] p-4">
+                  <p className="text-[12px] font-medium uppercase tracking-wide text-[#5f6e83]">Customer Template Code (WABA)</p>
+                  <p className="mt-2 font-mono text-[14px] text-[#2d3441]">{viewingProduct.customer_template_code?.trim() || "Not set. Uses AppSHD default."}</p>
                 </div>
               </div>
             )}
