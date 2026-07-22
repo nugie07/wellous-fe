@@ -64,7 +64,8 @@ const getApiBaseUrl = () => {
   return raw ? raw.replace(/\/+$/, "") : "http://api-wellous.lokal.test"
 }
 
-const CAPCHA_SITE_KEY = "6Ld-U3AsAAAAAM44o5I_JG4c5E59bvh86OndBBt3";
+// Fallback dipakai hanya jika VITE_RECAPTCHA_SITE_KEY tidak di-set saat build.
+const FALLBACK_RECAPTCHA_SITE_KEY = "6Ld-U3AsAAAAAM44o5I_JG4c5E59bvh86OndBBt3";
 
 function App() {
   const [pathname, setPathname] = useState(() => window.location.pathname || "/")
@@ -105,7 +106,7 @@ function App() {
   const forgotRecaptchaContainerRef = useRef<HTMLDivElement | null>(null)
   const forgotRecaptchaWidgetIdRef = useRef<number | null>(null)
 
-  const recaptchaSiteKey = CAPCHA_SITE_KEY || (import.meta.env.VITE_RECAPTCHA_SITE_KEY as string | undefined)?.trim()
+  const recaptchaSiteKey = (import.meta.env.VITE_RECAPTCHA_SITE_KEY as string | undefined)?.trim() || FALLBACK_RECAPTCHA_SITE_KEY
   const apiBaseUrl = getApiBaseUrl()
   const isAuthenticated = Boolean(authSession?.access_token)
 
