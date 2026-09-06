@@ -33,6 +33,8 @@ export type ProductPayload = {
   customer_template_code?: string
 }
 
+export type VendorStatus = "active" | "suspended"
+
 export type VendorItem = {
   id: string
   name: string
@@ -42,8 +44,13 @@ export type VendorItem = {
   address: string
   long: number
   lat: number
+  status?: VendorStatus
   product_ids: string[]
   created_at?: string
+}
+
+export function vendorStatus(vendor: Pick<VendorItem, "status">): VendorStatus {
+  return vendor.status === "suspended" ? "suspended" : "active"
 }
 
 export type LeadItem = {
@@ -325,6 +332,20 @@ export async function updateVendor(id: string, payload: { name: string; code: st
 
 export async function deleteVendor(id: string, session?: AuthSession | null) {
   return request(`/v1/vendors/${id}`, { method: "DELETE" }, session)
+}
+
+export async function suspendVendors(ids: string[], session?: AuthSession | null) {
+  return request<{ status: VendorStatus; ids: string[]; updated: number }>("/v1/vendors/suspend", {
+    method: "POST",
+    body: JSON.stringify({ ids }),
+  }, session)
+}
+
+export async function unsuspendVendors(ids: string[], session?: AuthSession | null) {
+  return request<{ status: VendorStatus; ids: string[]; updated: number }>("/v1/vendors/unsuspend", {
+    method: "POST",
+    body: JSON.stringify({ ids }),
+  }, session)
 }
 
 export async function fetchVendorConfig(session?: AuthSession | null) {

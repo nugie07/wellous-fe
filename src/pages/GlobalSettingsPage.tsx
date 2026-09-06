@@ -21,12 +21,14 @@ import {
   regenerateProductTypeformWebhook,
   resetUserPassword,
   sendTestEmail,
+  suspendVendors,
   updateProduct,
   updateSetting,
   updateVendorConfig,
   updateUser,
   updateVendor,
   createUser,
+  vendorStatus,
   type MessageLogItem,
   type ProductItem,
   type UserItemApi,
@@ -134,7 +136,10 @@ export default function GlobalSettingsPage({ onLogout, navigate }: GlobalSetting
   const [vProductIds, setVProductIds] = useState<string[]>([])
   const [vendorSearch, setVendorSearch] = useState("")
   const [vendorPage, setVendorPage] = useState(1)
+  const [selectedVendorIds, setSelectedVendorIds] = useState<string[]>([])
+  const [suspendingVendors, setSuspendingVendors] = useState(false)
   const vendorImportRef = useRef<HTMLInputElement | null>(null)
+  const vendorSelectAllRef = useRef<HTMLInputElement | null>(null)
 
   // ── Integration Settings ─────────────────────────────────────────────────────
   const [products, setProducts] = useState<ProductItem[]>([])
@@ -324,8 +329,35 @@ export default function GlobalSettingsPage({ onLogout, navigate }: GlobalSetting
 
   const handleDeleteVendor = async (id: string) => {
     if (!window.confirm("Delete this vendor?")) return
-    try { await deleteVendor(id); setVendors((prev) => prev.filter((v) => v.id !== id)); setFeedback("Vendor deleted.") }
+    try {
+      await deleteVendor(id)
+      setVendors((prev) => prev.filter((v) => v.id !== id))
+      setSelectedVendorIds((prev) => prev.filter((vendorId) => vendorId !== id))
+      setFeedback("Vendor deleted.")
+    }
     catch (err) { setError(err instanceof Error ? err.message : "Failed to delete vendor.") }
+  }
+
+  const toggleVendorSelect = (id: string) => {
+    setSelectedVendorIds((prev) => (prev.includes(id) ? prev.filter((vendorId) => vendorId !== id) : [...prev, id]))
+  }
+
+  const handleSuspendSelectedVendors = async () => {
+    if (selectedVendorIds.length === 0) return
+    if (!window.confirm(`Suspend ${selectedVendorIds.length} vendor? Vendor yang di-suspend tidak akan menerima assign lead baru.`)) return
+    setError("")
+    setSuspendingVendors(true)
+    try {
+      await suspendVendors(selectedVendorIds)
+      const suspended = new Set(selectedVendorIds)
+      setVendors((prev) => prev.map((v) => (suspended.has(v.id) ? { ...v, status: "suspended" } : v)))
+      setSelectedVendorIds([])
+      setFeedback(`${suspended.size} vendor di-suspend.`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to suspend vendors.")
+    } finally {
+      setSuspendingVendors(false)
+    }
   }
 
   const handleDownloadVendorTemplate = () => {
@@ -506,6 +538,18 @@ export default function GlobalSettingsPage({ onLogout, navigate }: GlobalSetting
   const filteredVendors = vendorSearch.trim() ? vendors.filter((v) => [v.name, v.code ?? "", v.email ?? "", v.whatsapp_number ?? "", v.address ?? ""].some((s) => s.toLowerCase().includes(vendorSearch.toLowerCase()))) : vendors
   const vendorTotalPages = Math.max(1, Math.ceil(filteredVendors.length / VENDOR_PAGE_SIZE))
   const paginatedVendors = filteredVendors.slice((vendorPage - 1) * VENDOR_PAGE_SIZE, vendorPage * VENDOR_PAGE_SIZE)
+  const filteredVendorIds = filteredVendors.map((v) => v.id)
+  const allFilteredVendorsSelected = filteredVendorIds.length > 0 && filteredVendorIds.every((id) => selectedVendorIds.includes(id))
+  const someFilteredVendorsSelected = filteredVendorIds.some((id) => selectedVendorIds.includes(id))
+
+  useEffect(() => {
+    if (!vendorSelectAllRef.current) return
+    vendorSelectAllRef.current.indeterminate = someFilteredVendorsSelected && !allFilteredVendorsSelected
+  }, [someFilteredVendorsSelected, allFilteredVendorsSelected])
+
+  const toggleSelectAllVendors = () => {
+    setSelectedVendorIds(allFilteredVendorsSelected ? [] : filteredVendorIds)
+  }
 
   const filteredProducts = productSearch.trim() ? products.filter((p) => p.id.toLowerCase().includes(productSearch.toLowerCase()) || p.name.toLowerCase().includes(productSearch.toLowerCase()) || (p.typeform_id ?? "").toLowerCase().includes(productSearch.toLowerCase())) : products
   const productTotalPages = Math.max(1, Math.ceil(filteredProducts.length / PRODUCT_PAGE_SIZE))
@@ -634,6 +678,11 @@ export default function GlobalSettingsPage({ onLogout, navigate }: GlobalSetting
                   <h3 className="text-[18px] font-semibold text-[#2b3340]">Vendor</h3>
                   <div className="flex flex-wrap items-center gap-3">
                     <input type="search" placeholder="Search vendor..." value={vendorSearch} onChange={(e) => { setVendorSearch(e.target.value); setVendorPage(1) }} className="h-9 w-52 rounded border border-[#d8e1ea] px-3 text-[14px]" />
+                    {selectedVendorIds.length > 0 ? (
+                      <Button type="button" disabled={suspendingVendors} onClick={handleSuspendSelectedVendors} className="rounded bg-[#e04b4b] h-9 px-4 flex items-center justify-center text-[14px] font-medium text-white hover:bg-[#c43d3d] disabled:opacity-50">
+                        {suspendingVendors ? "Suspending..." : `Suspend (${selectedVendorIds.length})`}
+                      </Button>
+                    ) : null}
                     <Button type="button" onClick={handleDownloadVendorTemplate} className="rounded border border-[#d8e1ea] bg-white h-9 px-4 flex items-center justify-center text-[14px] font-medium text-[#3f7f8f] hover:bg-[#f5f7f9]">Download Template</Button>
                     <Button type="button" onClick={() => vendorImportRef.current?.click()} className="rounded border border-[#d8e1ea] bg-white h-9 px-4 flex items-center justify-center text-[14px] font-medium text-[#3f7f8f] hover:bg-[#f5f7f9]">Import CSV</Button>
                     <Button type="button" onClick={openCreateVendor} className="rounded bg-[#3f7f8f] h-9 px-4 flex items-center justify-center text-[14px] font-medium text-white hover:bg-[#35707a]">Add Vendor</Button>
@@ -648,12 +697,38 @@ export default function GlobalSettingsPage({ onLogout, navigate }: GlobalSetting
                     <div className="overflow-x-auto">
                       <table className="w-full text-left text-[14px]">
                         <thead><tr className="border-b border-[#ecf1f5] bg-[#f8fafc] text-[#6e7b8e]">
-                          <th className="py-3 px-4 font-medium">Name</th><th className="py-3 px-4 font-medium">Code</th><th className="py-3 px-4 font-medium">Email</th><th className="py-3 px-4 font-medium">WhatsApp</th><th className="py-3 px-4 font-medium">Address</th><th className="py-3 px-4 font-medium">Products</th><th className="py-3 px-4 font-medium">Long</th><th className="py-3 px-4 font-medium">Lat</th><th className="w-32 py-3 px-4 font-medium">Actions</th>
+                          <th className="w-12 py-3 px-4 font-medium">
+                            <input
+                              ref={vendorSelectAllRef}
+                              type="checkbox"
+                              checked={allFilteredVendorsSelected}
+                              onChange={toggleSelectAllVendors}
+                              disabled={filteredVendors.length === 0}
+                              aria-label="Select all vendors"
+                              className="h-4 w-4"
+                            />
+                          </th>
+                          <th className="py-3 px-4 font-medium">Name</th><th className="py-3 px-4 font-medium">Code</th><th className="py-3 px-4 font-medium">Status</th><th className="py-3 px-4 font-medium">Email</th><th className="py-3 px-4 font-medium">WhatsApp</th><th className="py-3 px-4 font-medium">Address</th><th className="py-3 px-4 font-medium">Products</th><th className="py-3 px-4 font-medium">Long</th><th className="py-3 px-4 font-medium">Lat</th><th className="w-32 py-3 px-4 font-medium">Actions</th>
                         </tr></thead>
                         <tbody>
                           {paginatedVendors.map((v) => (
-                            <tr key={v.id} className="border-b border-[#ecf1f5] text-[#314158] hover:bg-[#fafbfc]">
-                              <td className="py-3 px-4 font-medium">{v.name}</td><td className="py-3 px-4">{v.code || "-"}</td><td className="py-3 px-4">{v.email || "-"}</td><td className="py-3 px-4">{v.whatsapp_number || "-"}</td><td className="py-3 px-4">{v.address || "-"}</td><td className="py-3 px-4">{v.product_ids?.length ? <div className="flex flex-wrap gap-2">{v.product_ids.map((productId) => <span key={productId} className="rounded-full bg-[#eef6f7] px-2.5 py-1 text-[12px] font-medium text-[#3f7f8f]">{productNameMap.get(productId) ?? productId}</span>)}</div> : <span className="text-[13px] text-[#6d7888]">No products linked</span>}</td><td className="py-3 px-4">{v.long}</td><td className="py-3 px-4">{v.lat}</td>
+                            <tr key={v.id} className={`border-b border-[#ecf1f5] text-[#314158] hover:bg-[#fafbfc] ${vendorStatus(v) === "suspended" ? "bg-[#fff8f6]" : ""}`}>
+                              <td className="py-3 px-4">
+                                <input type="checkbox" checked={selectedVendorIds.includes(v.id)} onChange={() => toggleVendorSelect(v.id)} aria-label={`Select ${v.name}`} className="h-4 w-4" />
+                              </td>
+                              <td className="py-3 px-4 font-medium">{v.name}</td>
+                              <td className="py-3 px-4">{v.code || "-"}</td>
+                              <td className="py-3 px-4">
+                                <span className={`inline-block rounded-full border px-2.5 py-0.5 text-[12px] font-medium ${vendorStatus(v) === "suspended" ? "border-amber-200 bg-amber-50 text-amber-700" : "border-emerald-200 bg-emerald-50 text-emerald-700"}`}>
+                                  {vendorStatus(v) === "suspended" ? "Suspended" : "Active"}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4">{v.email || "-"}</td>
+                              <td className="py-3 px-4">{v.whatsapp_number || "-"}</td>
+                              <td className="py-3 px-4">{v.address || "-"}</td>
+                              <td className="py-3 px-4">{v.product_ids?.length ? <div className="flex flex-wrap gap-2">{v.product_ids.map((productId) => <span key={productId} className="rounded-full bg-[#eef6f7] px-2.5 py-1 text-[12px] font-medium text-[#3f7f8f]">{productNameMap.get(productId) ?? productId}</span>)}</div> : <span className="text-[13px] text-[#6d7888]">No products linked</span>}</td>
+                              <td className="py-3 px-4">{v.long}</td>
+                              <td className="py-3 px-4">{v.lat}</td>
                               <td className="py-3 px-4">
                                 <button type="button" onClick={() => openEditVendor(v)} className="mr-2 text-[#3f7f8f] hover:underline">Edit</button>
                                 <button type="button" onClick={() => handleDeleteVendor(v.id)} className="text-red-600 hover:underline">Delete</button>

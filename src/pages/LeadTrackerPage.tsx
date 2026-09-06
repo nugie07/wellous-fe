@@ -7,7 +7,7 @@ import { HeaderInbox } from "@/components/HeaderInbox"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { assignBulk, assignLead, exportLeads, getAssignJob, changePassword, fetchLeadTransactions, fetchLeads, fetchProducts, fetchVendors, type AssignJobStatus, type LeadItem, type LeadTrxItem, type ProductItem, type VendorItem } from "@/lib/api"
+import { assignBulk, assignLead, exportLeads, getAssignJob, changePassword, fetchLeadTransactions, fetchLeads, fetchProducts, fetchVendors, vendorStatus, type AssignJobStatus, type LeadItem, type LeadTrxItem, type ProductItem, type VendorItem } from "@/lib/api"
 import { getStoredAuthSession } from "@/lib/auth"
 import { downloadBlobFile } from "@/lib/utils"
 
@@ -246,7 +246,7 @@ export default function LeadTrackerPage({ onLogout, navigate }: LeadTrackerPageP
 
     try {
       const vendorItems = await fetchVendors({ productId: lead.product_id })
-      setEligibleVendors(vendorItems)
+      setEligibleVendors(vendorItems.filter((vendor) => vendorStatus(vendor) !== "suspended"))
       setSelectedVendorId(vendorItems[0]?.id ?? "")
     } catch (err) {
       setEligibleVendorsError(err instanceof Error ? err.message : "Failed to load eligible vendors.")
@@ -286,7 +286,7 @@ export default function LeadTrackerPage({ onLogout, navigate }: LeadTrackerPageP
     let skippedLeads = 0
     const assignments = unassignedLeads.flatMap((lead) => {
       const productEligibleVendors = vendors.filter(
-        (vendor) => vendor.whatsapp_number.trim() !== "" && vendor.product_ids?.includes(lead.product_id)
+        (vendor) => vendorStatus(vendor) !== "suspended" && vendor.whatsapp_number.trim() !== "" && vendor.product_ids?.includes(lead.product_id)
       )
 
       if (productEligibleVendors.length === 0) {
