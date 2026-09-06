@@ -18,6 +18,7 @@ import {
   fetchUsers,
   fetchVendorConfig,
   fetchVendors,
+  regenerateProductTypeformWebhook,
   resetUserPassword,
   sendTestEmail,
   updateProduct,
@@ -151,6 +152,7 @@ export default function GlobalSettingsPage({ onLogout, navigate }: GlobalSetting
   const [productCustomerMessageTemplate, setProductCustomerMessageTemplate] = useState("")
   const [productDealerTemplateCode, setProductDealerTemplateCode] = useState("")
   const [productCustomerTemplateCode, setProductCustomerTemplateCode] = useState("")
+  const [regeneratingProductWebhook, setRegeneratingProductWebhook] = useState(false)
   const [productSearch, setProductSearch] = useState("")
   const [productPage, setProductPage] = useState(1)
   const [vendorDistributionType, setVendorDistributionType] = useState<DistributionType>("by_alphabet")
@@ -388,6 +390,33 @@ export default function GlobalSettingsPage({ onLogout, navigate }: GlobalSetting
     }
   }
 
+  const copyProductWebhookUrl = async (url: string) => {
+    if (!url.trim()) return
+    try {
+      await navigator.clipboard.writeText(url)
+      setFeedback("Typeform Webhook URL copied.")
+    } catch {
+      setError("Failed to copy webhook URL.")
+    }
+  }
+
+  const handleRegenerateProductWebhook = async (product: ProductItem) => {
+    if (!window.confirm("Regenerate webhook URL? Update Typeform webhook configuration with the new URL.")) return
+    setRegeneratingProductWebhook(true)
+    setError("")
+    try {
+      const updated = await regenerateProductTypeformWebhook(product.id)
+      setProducts((prev) => prev.map((p) => (p.id === product.id ? updated : p)))
+      if (editingProduct?.id === product.id) setEditingProduct(updated)
+      if (viewingProduct?.id === product.id) setViewingProduct(updated)
+      setFeedback("Typeform Webhook URL regenerated.")
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to regenerate webhook URL.")
+    } finally {
+      setRegeneratingProductWebhook(false)
+    }
+  }
+
   const getProductFormError = (err: unknown) => {
     if (!(err instanceof Error)) return "Failed to save product."
     const message = err.message.toLowerCase()
@@ -414,13 +443,14 @@ export default function GlobalSettingsPage({ onLogout, navigate }: GlobalSetting
       if (editingProduct) {
         const updated = await updateProduct(editingProduct.id, payload)
         setProducts((prev) => prev.map((p) => p.id === editingProduct.id ? updated : p))
+        setEditingProduct(updated)
         setFeedback("Product updated.")
       } else {
         const created = await createProduct(payload)
         setProducts((prev) => [created, ...prev])
-        setFeedback("Product created.")
+        setEditingProduct(created)
+        setFeedback("Product created. Copy Typeform Webhook URL ke Typeform Admin.")
       }
-      setProductModalOpen(false)
     } catch (err) { setError(getProductFormError(err)) }
     finally { setSavingProduct(false) }
   }
@@ -653,7 +683,7 @@ export default function GlobalSettingsPage({ onLogout, navigate }: GlobalSetting
                 {/* Product Management */}
                 <div className="rounded-md border border-[#e0e7ef] bg-white">
                   <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#edf1f5] px-5 py-4">
-                    <div><h3 className="text-[16px] font-semibold text-[#2b3340]">Product</h3><p className="mt-0.5 text-[13px] text-[#6d7888]">Kelola master data produk, termasuk mapping `typeform_id` yang diprioritaskan backend dibanding hidden field `product` lama.</p></div>
+                    <div><h3 className="text-[16px] font-semibold text-[#2b3340]">Product</h3><p className="mt-0.5 text-[13px] text-[#6d7888]">Setiap product punya Typeform ID dan Webhook URL unik. Tempel Webhook URL ke Typeform Admin (Connect → Webhooks) untuk form product tersebut.</p></div>
                     <div className="flex items-center gap-3">
                       <input type="search" placeholder="Search product..." value={productSearch} onChange={(e) => { setProductSearch(e.target.value); setProductPage(1) }} className="h-9 w-52 rounded border border-[#d8e1ea] px-3 text-[14px]" />
                       <Button type="button" onClick={openCreateProduct} className="rounded bg-[#3f7f8f] h-9 px-4 flex items-center justify-center text-[14px] font-medium text-white hover:bg-[#35707a]">Add Product</Button>
@@ -664,7 +694,7 @@ export default function GlobalSettingsPage({ onLogout, navigate }: GlobalSetting
                       <div className="overflow-x-auto">
                         <table className="w-full text-left text-[14px]">
                           <thead><tr className="border-b border-[#ecf1f5] bg-[#f8fafc] text-[#6e7b8e]">
-                            <th className="py-3 px-4 font-medium">ID</th><th className="py-3 px-4 font-medium">Name</th><th className="py-3 px-4 font-medium">Color</th><th className="py-3 px-4 font-medium">Typeform ID</th><th className="py-3 px-4 font-medium">Template</th><th className="w-40 py-3 px-4 font-medium">Actions</th>
+                            <th className="py-3 px-4 font-medium">ID</th><th className="py-3 px-4 font-medium">Name</th><th className="py-3 px-4 font-medium">Color</th><th className="py-3 px-4 font-medium">Typeform ID</th><th className="py-3 px-4 font-medium">Webhook</th><th className="py-3 px-4 font-medium">Template</th><th className="w-40 py-3 px-4 font-medium">Actions</th>
                           </tr></thead>
                           <tbody>
                             {paginatedProducts.map((p) => (
@@ -673,6 +703,13 @@ export default function GlobalSettingsPage({ onLogout, navigate }: GlobalSetting
                                 <td className="py-3 px-4 font-medium">{p.name}</td>
                                 <td className="py-3 px-4"><div className="flex items-center gap-2"><span className="h-4 w-4 rounded-full border border-[#d8e1ea]" style={{ backgroundColor: p.color_hex || "#fff" }} />{p.color_hex || "-"}</div></td>
                                 <td className="py-3 px-4 text-[13px] text-[#6d7888]">{p.typeform_id?.trim() ? <span className="font-mono text-[#314158]">{p.typeform_id}</span> : "Belum diset"}</td>
+                                <td className="py-3 px-4 text-[13px]">
+                                  {p.typeform_webhook_url?.trim() ? (
+                                    <button type="button" onClick={() => copyProductWebhookUrl(p.typeform_webhook_url ?? "")} className="font-mono text-[12px] text-[#3f7f8f] hover:underline">Copy URL</button>
+                                  ) : (
+                                    <span className="text-[#6d7888]">Belum tersedia</span>
+                                  )}
+                                </td>
                                 <td className="max-w-[360px] py-3 px-4 text-[13px] text-[#6d7888]">
                                   {p.message_template?.trim() ? <span className="block truncate">{p.message_template}</span> : "Fallback ke default template"}
                                   <div className="mt-2 flex flex-wrap gap-2">
@@ -1054,8 +1091,24 @@ export default function GlobalSettingsPage({ onLogout, navigate }: GlobalSetting
                     <div><label className="block text-[13px] font-medium text-[#2d3441]">Color Hex</label><div className="mt-1 flex gap-2"><input type="text" value={productColorHex} onChange={(e) => setProductColorHex(e.target.value)} placeholder="#3f7f8f" className="h-10 flex-1 rounded border border-[#d8e1ea] px-3 text-[14px]" /><input type="color" value={productColorHex || "#3f7f8f"} onChange={(e) => setProductColorHex(e.target.value)} className="h-10 w-12 rounded border border-[#d8e1ea] bg-white p-1" /></div></div>
                     <div>
                       <label className="block text-[13px] font-medium text-[#2d3441]">Typeform ID</label>
-                      <input type="text" value={productTypeformId} onChange={(e) => setProductTypeformId(e.target.value)} className="mt-1 h-10 w-full rounded border border-[#d8e1ea] px-3 font-mono text-[14px]" placeholder="abc123XYZ" />
+                      <input type="text" value={productTypeformId} onChange={(e) => setProductTypeformId(e.target.value)} className="mt-1 h-10 w-full rounded border border-[#d8e1ea] px-3 font-mono text-[14px]" placeholder="K3NjgJQR" />
+                      <p className="mt-1 text-[12px] text-[#6d7888]">ID form dari URL Typeform, misalnya `wellous.typeform.com/to/K3NjgJQR`.</p>
                     </div>
+                    {editingProduct?.typeform_webhook_url?.trim() ? (
+                      <div className="md:col-span-2 rounded border border-[#dbeafe] bg-[#eff6ff] p-4">
+                        <label className="block text-[13px] font-medium text-[#1e40af]">Typeform Webhook URL</label>
+                        <p className="mt-1 text-[12px] text-[#3b82f6]">Tempel URL ini di Typeform Admin → Connect → Webhooks untuk form product ini.</p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <input type="text" readOnly value={editingProduct.typeform_webhook_url} className="h-10 min-w-0 flex-1 rounded border border-[#bfdbfe] bg-white px-3 font-mono text-[12px] text-[#1e3a8a]" />
+                          <button type="button" onClick={() => copyProductWebhookUrl(editingProduct.typeform_webhook_url ?? "")} className="rounded border border-[#93c5fd] bg-white px-3 text-[13px] font-medium text-[#1d4ed8] hover:bg-[#dbeafe]">Copy</button>
+                          <button type="button" disabled={regeneratingProductWebhook} onClick={() => handleRegenerateProductWebhook(editingProduct)} className="rounded border border-[#93c5fd] bg-white px-3 text-[13px] font-medium text-[#1d4ed8] hover:bg-[#dbeafe] disabled:opacity-50">Regenerate</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="md:col-span-2 rounded border border-dashed border-[#d8e1ea] px-4 py-3 text-[12px] text-[#6d7888]">
+                        Typeform Webhook URL akan tersedia setelah product disimpan.
+                      </div>
+                    )}
                     <div className="md:col-span-2">
                       <label className="block text-[13px] font-medium text-[#2d3441]">Dealer Message Template</label>
                       <textarea value={productDealerMessageTemplate} onChange={(e) => setProductDealerMessageTemplate(e.target.value)} rows={6} className="mt-1 w-full rounded border border-[#d8e1ea] px-3 py-2 text-[14px]" placeholder="Template khusus untuk dealer/vendor." />
@@ -1107,7 +1160,7 @@ export default function GlobalSettingsPage({ onLogout, navigate }: GlobalSetting
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h3 className="text-[18px] font-semibold text-[#2d3441]">Product Detail</h3>
-                <p className="mt-1 text-[13px] text-[#6d7888]">Backend akan memprioritaskan `form_id` Typeform ini dibanding hidden field `product` lama untuk mapping submission.</p>
+                <p className="mt-1 text-[13px] text-[#6d7888]">Setiap product punya webhook URL unik. Pastikan URL ini sudah ditempel di Typeform Admin untuk form dengan Typeform ID yang sama.</p>
               </div>
               <button type="button" onClick={() => setViewingProduct(null)} className="rounded border border-[#d8e1ea] h-9 px-3 flex items-center justify-center text-[13px] text-[#5f6e83] hover:bg-[#f5f7f9]">Close</button>
             </div>
@@ -1124,9 +1177,21 @@ export default function GlobalSettingsPage({ onLogout, navigate }: GlobalSetting
                   <p className="text-[12px] font-medium uppercase tracking-wide text-[#5f6e83]">Name</p>
                   <p className="mt-2 text-[14px] text-[#2d3441]">{viewingProduct.name}</p>
                 </div>
-                <div className="rounded border border-[#edf1f5] p-4">
+                <div className="rounded border border-[#edf1f5] p-4 md:col-span-2">
                   <p className="text-[12px] font-medium uppercase tracking-wide text-[#5f6e83]">Typeform ID</p>
                   <p className="mt-2 text-[14px] text-[#2d3441]">{viewingProduct.typeform_id?.trim() ? <span className="font-mono">{viewingProduct.typeform_id}</span> : "Belum diset"}</p>
+                </div>
+                <div className="rounded border border-[#edf1f5] p-4 md:col-span-2">
+                  <p className="text-[12px] font-medium uppercase tracking-wide text-[#5f6e83]">Typeform Webhook URL</p>
+                  {viewingProduct.typeform_webhook_url?.trim() ? (
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <p className="break-all font-mono text-[13px] text-[#2d3441]">{viewingProduct.typeform_webhook_url}</p>
+                      <button type="button" onClick={() => copyProductWebhookUrl(viewingProduct.typeform_webhook_url ?? "")} className="rounded border border-[#d8e1ea] px-3 py-1 text-[12px] text-[#3f7f8f] hover:bg-[#f5f7f9]">Copy</button>
+                      <button type="button" disabled={regeneratingProductWebhook} onClick={() => handleRegenerateProductWebhook(viewingProduct)} className="rounded border border-[#d8e1ea] px-3 py-1 text-[12px] text-[#3f7f8f] hover:bg-[#f5f7f9] disabled:opacity-50">Regenerate</button>
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-[14px] text-[#6d7888]">Belum tersedia</p>
+                  )}
                 </div>
                 <div className="rounded border border-[#edf1f5] p-4">
                   <p className="text-[12px] font-medium uppercase tracking-wide text-[#5f6e83]">Color Hex</p>

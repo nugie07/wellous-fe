@@ -12,6 +12,7 @@ export type ProductItem = {
   name: string
   color_hex?: string
   typeform_id?: string
+  typeform_webhook_url?: string
   message_template?: string
   dealer_message_template?: string
   customer_message_template?: string
@@ -292,6 +293,12 @@ export async function updateProduct(id: string, payload: ProductPayload, session
 
 export async function deleteProduct(id: string, session?: AuthSession | null) {
   return request(`/v1/products/${id}`, { method: "DELETE" }, session)
+}
+
+export async function regenerateProductTypeformWebhook(id: string, session?: AuthSession | null) {
+  return request<ProductItem>(`/v1/products/${id}/regenerate-typeform-webhook`, {
+    method: "POST",
+  }, session)
 }
 
 export async function fetchVendors(options?: { productId?: string }, session?: AuthSession | null) {
