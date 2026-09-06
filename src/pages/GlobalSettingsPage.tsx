@@ -21,6 +21,7 @@ import {
   regenerateProductTypeformWebhook,
   resetUserPassword,
   sendTestEmail,
+  activateVendors,
   suspendVendors,
   updateProduct,
   updateSetting,
@@ -138,6 +139,7 @@ export default function GlobalSettingsPage({ onLogout, navigate }: GlobalSetting
   const [vendorPage, setVendorPage] = useState(1)
   const [selectedVendorIds, setSelectedVendorIds] = useState<string[]>([])
   const [suspendingVendors, setSuspendingVendors] = useState(false)
+  const [activatingVendors, setActivatingVendors] = useState(false)
   const vendorImportRef = useRef<HTMLInputElement | null>(null)
   const vendorSelectAllRef = useRef<HTMLInputElement | null>(null)
 
@@ -357,6 +359,24 @@ export default function GlobalSettingsPage({ onLogout, navigate }: GlobalSetting
       setError(err instanceof Error ? err.message : "Failed to suspend vendors.")
     } finally {
       setSuspendingVendors(false)
+    }
+  }
+
+  const handleActivateSelectedVendors = async () => {
+    if (selectedVendorIds.length === 0) return
+    if (!window.confirm(`Aktifkan ${selectedVendorIds.length} vendor? Vendor yang aktif akan kembali dapat menerima assign lead.`)) return
+    setError("")
+    setActivatingVendors(true)
+    try {
+      await activateVendors(selectedVendorIds)
+      const activated = new Set(selectedVendorIds)
+      setVendors((prev) => prev.map((v) => (activated.has(v.id) ? { ...v, status: "active" } : v)))
+      setSelectedVendorIds([])
+      setFeedback(`${activated.size} vendor diaktifkan.`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to activate vendors.")
+    } finally {
+      setActivatingVendors(false)
     }
   }
 
@@ -679,9 +699,14 @@ export default function GlobalSettingsPage({ onLogout, navigate }: GlobalSetting
                   <div className="flex flex-wrap items-center gap-3">
                     <input type="search" placeholder="Search vendor..." value={vendorSearch} onChange={(e) => { setVendorSearch(e.target.value); setVendorPage(1) }} className="h-9 w-52 rounded border border-[#d8e1ea] px-3 text-[14px]" />
                     {selectedVendorIds.length > 0 ? (
-                      <Button type="button" disabled={suspendingVendors} onClick={handleSuspendSelectedVendors} className="rounded bg-[#e04b4b] h-9 px-4 flex items-center justify-center text-[14px] font-medium text-white hover:bg-[#c43d3d] disabled:opacity-50">
-                        {suspendingVendors ? "Suspending..." : `Suspend (${selectedVendorIds.length})`}
-                      </Button>
+                      <>
+                        <Button type="button" disabled={activatingVendors} onClick={handleActivateSelectedVendors} className="rounded bg-[#10b981] h-9 px-4 flex items-center justify-center text-[14px] font-medium text-white hover:bg-[#059669] disabled:opacity-50">
+                          {activatingVendors ? "Activating..." : `Active (${selectedVendorIds.length})`}
+                        </Button>
+                        <Button type="button" disabled={suspendingVendors} onClick={handleSuspendSelectedVendors} className="rounded bg-[#e04b4b] h-9 px-4 flex items-center justify-center text-[14px] font-medium text-white hover:bg-[#c43d3d] disabled:opacity-50">
+                          {suspendingVendors ? "Suspending..." : `Suspend (${selectedVendorIds.length})`}
+                        </Button>
+                      </>
                     ) : null}
                     <Button type="button" onClick={handleDownloadVendorTemplate} className="rounded border border-[#d8e1ea] bg-white h-9 px-4 flex items-center justify-center text-[14px] font-medium text-[#3f7f8f] hover:bg-[#f5f7f9]">Download Template</Button>
                     <Button type="button" onClick={() => vendorImportRef.current?.click()} className="rounded border border-[#d8e1ea] bg-white h-9 px-4 flex items-center justify-center text-[14px] font-medium text-[#3f7f8f] hover:bg-[#f5f7f9]">Import CSV</Button>

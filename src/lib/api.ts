@@ -341,8 +341,8 @@ export async function suspendVendors(ids: string[], session?: AuthSession | null
   }, session)
 }
 
-export async function unsuspendVendors(ids: string[], session?: AuthSession | null) {
-  return request<{ status: VendorStatus; ids: string[]; updated: number }>("/v1/vendors/unsuspend", {
+export async function activateVendors(ids: string[], session?: AuthSession | null) {
+  return request<{ status: VendorStatus; ids: string[]; updated: number }>("/v1/vendors/active", {
     method: "POST",
     body: JSON.stringify({ ids }),
   }, session)
