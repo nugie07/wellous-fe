@@ -1078,8 +1078,8 @@ export default function GlobalSettingsPage({ onLogout, navigate }: GlobalSetting
 
       {productModalOpen ? (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/40 p-4">
-          <div className="flex min-h-full items-start justify-center py-4 sm:items-center">
-            <div className="flex w-full max-w-2xl max-h-[calc(100vh-2rem)] flex-col overflow-hidden rounded-md bg-white shadow-xl">
+          <div className="flex min-h-full items-start justify-center">
+            <div className="my-auto flex w-full max-w-2xl max-h-[calc(100vh-2rem)] flex-col overflow-hidden rounded-md bg-white shadow-xl">
               <div className="border-b border-[#edf1f5] px-6 py-5">
                 <h3 className="text-[18px] font-semibold text-[#2d3441]">{editingProduct ? "Edit Product" : "Create Product"}</h3>
               </div>
@@ -1155,20 +1155,22 @@ export default function GlobalSettingsPage({ onLogout, navigate }: GlobalSetting
       ) : null}
 
       {viewingProduct ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-2xl rounded-md bg-white p-6 shadow-xl">
-            <div className="flex items-start justify-between gap-4">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/40 p-4">
+          <div className="flex min-h-full items-start justify-center">
+            <div className="my-auto flex w-full max-w-2xl max-h-[calc(100vh-2rem)] flex-col overflow-hidden rounded-md bg-white shadow-xl">
+            <div className="flex shrink-0 items-start justify-between gap-4 border-b border-[#edf1f5] px-6 py-5">
               <div>
                 <h3 className="text-[18px] font-semibold text-[#2d3441]">Product Detail</h3>
                 <p className="mt-1 text-[13px] text-[#6d7888]">Setiap product punya webhook URL unik. Pastikan URL ini sudah ditempel di Typeform Admin untuk form dengan Typeform ID yang sama.</p>
               </div>
-              <button type="button" onClick={() => setViewingProduct(null)} className="rounded border border-[#d8e1ea] h-9 px-3 flex items-center justify-center text-[13px] text-[#5f6e83] hover:bg-[#f5f7f9]">Close</button>
+              <button type="button" onClick={() => setViewingProduct(null)} className="shrink-0 rounded border border-[#d8e1ea] h-9 px-3 flex items-center justify-center text-[13px] text-[#5f6e83] hover:bg-[#f5f7f9]">Close</button>
             </div>
 
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
             {loadingProductDetail ? (
-              <div className="mt-6 rounded border border-[#d8e1ea] px-4 py-8 text-center text-[14px] text-[#6d7888]">Loading product detail...</div>
+              <div className="rounded border border-[#d8e1ea] px-4 py-8 text-center text-[14px] text-[#6d7888]">Loading product detail...</div>
             ) : (
-              <div className="mt-6 grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4 md:grid-cols-2">
                 <div className="rounded border border-[#edf1f5] p-4">
                   <p className="text-[12px] font-medium uppercase tracking-wide text-[#5f6e83]">Product ID</p>
                   <p className="mt-2 font-mono text-[14px] text-[#2d3441]">{viewingProduct.id}</p>
@@ -1226,6 +1228,8 @@ export default function GlobalSettingsPage({ onLogout, navigate }: GlobalSetting
                 </div>
               </div>
             )}
+            </div>
+            </div>
           </div>
         </div>
       ) : null}
