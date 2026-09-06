@@ -133,6 +133,8 @@ function App() {
     }
   }, [isAuthenticated, pathname])
 
+  const [showWabaWarning, setShowWabaWarning] = useState(false)
+
   useEffect(() => {
     const handleSessionExpired = () => {
       setPendingLogin(null)
@@ -146,6 +148,38 @@ function App() {
     window.addEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired)
     return () => window.removeEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired)
   }, [])
+
+  useEffect(() => {
+    if (!isAuthenticated || authSession?.user?.role !== "Admin") {
+      setShowWabaWarning(false)
+      return
+    }
+
+    let intervalId: ReturnType<typeof setInterval>
+
+    const checkWaba = async () => {
+      try {
+        const { getWabaValidatorStatus, fetchSettings } = await import("./lib/api")
+        const settings = await fetchSettings(["whatsapp_provider"])
+        if (settings.whatsapp_provider === "waba") {
+          const st = await getWabaValidatorStatus(authSession)
+          setShowWabaWarning(!st.connected)
+        } else {
+          setShowWabaWarning(false)
+        }
+      } catch {
+        setShowWabaWarning(true) // assume disconnected if it fails
+      }
+    }
+
+    checkWaba()
+    intervalId = setInterval(checkWaba, 10000)
+
+    return () => {
+      clearInterval(intervalId)
+    }
+  }, [isAuthenticated, authSession?.user?.role])
+
 
   useEffect(() => {
     if (!recaptchaSiteKey) return
@@ -714,6 +748,34 @@ function App() {
                 className="rounded-md bg-[#48a645] px-4 py-2 text-[13px] font-semibold text-white"
               >
                 Submit
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {showWabaWarning && isAuthenticated && pathname !== "/global-settings" ? (
+        <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-slate-900/60 px-4">
+          <div className="w-full max-w-[420px] rounded-xl bg-white p-6 shadow-2xl text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-amber-100">
+              <svg className="h-6 w-6 text-amber-600" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <h3 className="mt-4 text-[18px] font-bold text-[#24324a]">WABA Validator Terputus</h3>
+            <p className="mt-2 text-[14px] text-[#6a7280]">Provider WhatsApp diatur ke WABA, namun WABA Validator belum terhubung atau QR code expired. Validasi nomor tidak dapat dilakukan.</p>
+            <p className="mt-2 text-[14px] text-[#6a7280]">Silakan scan QR code di halaman Settings untuk menghubungkan WhatsApp web session.</p>
+
+            <div className="mt-6">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowWabaWarning(false)
+                  navigate("/global-settings")
+                }}
+                className="w-full rounded-md bg-[#3f7f8f] px-4 py-2.5 text-[14px] font-semibold text-white shadow-sm hover:bg-[#35707a]"
+              >
+                Ke Halaman Settings
               </button>
             </div>
           </div>

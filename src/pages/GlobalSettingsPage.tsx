@@ -184,6 +184,11 @@ export default function GlobalSettingsPage({ onLogout, navigate }: GlobalSetting
   const [defaultMessageTemplate, setDefaultMessageTemplate] = useState("")
   const [savingDefaultMessageTemplate, setSavingDefaultMessageTemplate] = useState(false)
 
+  // ── WABA Validator ───────────────────────────────────────────────────────────
+  const [wabaValidatorStatus, setWabaValidatorStatus] = useState<"loading" | "connected" | "disconnected">("loading")
+  const [wabaValidatorQr, setWabaValidatorQr] = useState<string | null>(null)
+  const [wabaValidatorQrLoading, setWabaValidatorQrLoading] = useState(false)
+
   // ── WhatsApp Log ─────────────────────────────────────────────────────────────
   const [msgLogs, setMsgLogs] = useState<MessageLogItem[]>([])
   const [logTotal, setLogTotal] = useState(0)
@@ -241,6 +246,35 @@ export default function GlobalSettingsPage({ onLogout, navigate }: GlobalSetting
     if (leftMenu !== "WhatsApp Log" || logLoaded) return
     loadLogs(1)
   }, [leftMenu, logLoaded])
+
+  const fetchWabaValidator = async () => {
+    try {
+      const { getWabaValidatorStatus, getWabaValidatorQr } = await import("@/lib/api")
+      const st = await getWabaValidatorStatus()
+      if (st.connected) {
+        setWabaValidatorStatus("connected")
+        setWabaValidatorQr(null)
+      } else {
+        setWabaValidatorStatus("disconnected")
+        const qrRes = await getWabaValidatorQr()
+        if (qrRes.status === "pending" && qrRes.qr) {
+          setWabaValidatorQr(qrRes.qr)
+        } else {
+          setWabaValidatorQr(null)
+        }
+      }
+    } catch {
+      setWabaValidatorStatus("disconnected")
+    }
+  }
+
+  useEffect(() => {
+    if (whatsappProvider === "waba") {
+      fetchWabaValidator()
+      const intv = setInterval(fetchWabaValidator, 5000)
+      return () => clearInterval(intv)
+    }
+  }, [whatsappProvider])
 
   const loadLogs = async (p: number) => {
     setLoadingLogs(true)
@@ -998,6 +1032,42 @@ export default function GlobalSettingsPage({ onLogout, navigate }: GlobalSetting
                         await saveSetting("appshd_dealer_template_code", appshdDealerTemplateCode, "")
                         await saveSetting("appshd_customer_template_code", appshdCustomerTemplateCode, "AppSHD settings updated.")
                       }} className="rounded bg-[#3f7f8f] h-9 px-4 flex items-center justify-center text-[14px] font-medium text-white hover:bg-[#35707a] disabled:opacity-50">{savingSettings ? "Saving..." : "Save"}</button>
+                    </div>
+                  </div>
+                ) : null}
+
+                {/* WABA Validator */}
+                {whatsappProvider === "waba" ? (
+                  <div className="rounded-md border border-[#e0e7ef] bg-white p-5">
+                    <h3 className="text-[16px] font-semibold text-[#2b3340]">WABA Number Validator</h3>
+                    <p className="mt-1 text-[13px] text-[#6d7888]">Scan QR ini untuk menghubungkan WhatsApp web session guna keperluan validasi nomor HP sebelum diassign ke vendor WABA.</p>
+                    <div className="mt-4 max-w-xl">
+                      <div className="mb-4">
+                        <span className={`inline-block rounded-full px-3 py-1 text-[12px] font-medium ${wabaValidatorStatus === "connected" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
+                          Status: {wabaValidatorStatus === "loading" ? "Memeriksa..." : wabaValidatorStatus === "connected" ? "Terhubung" : "Belum Terhubung"}
+                        </span>
+                      </div>
+                      
+                      {wabaValidatorStatus === "disconnected" && wabaValidatorQr ? (
+                        <div className="mb-4">
+                          <img src={wabaValidatorQr} alt="QR Code" className="w-48 h-48 border border-gray-200 rounded" />
+                          <p className="mt-2 text-[12px] text-gray-500">Scan dengan aplikasi WhatsApp di HP Anda.</p>
+                        </div>
+                      ) : wabaValidatorStatus === "disconnected" && !wabaValidatorQr ? (
+                        <p className="mb-4 text-[13px] text-gray-500">Menunggu QR Code...</p>
+                      ) : null}
+
+                      <div className="mt-4 border-t pt-4 border-[#e0e7ef]">
+                        <button type="button" onClick={async () => {
+                          try {
+                            const { logoutWabaValidator } = await import("@/lib/api")
+                            await logoutWabaValidator()
+                            fetchWabaValidator()
+                          } catch {}
+                        }} className="rounded border border-red-200 bg-red-50 h-9 px-4 text-[13px] font-medium text-red-600 hover:bg-red-100">
+                          {wabaValidatorStatus === "connected" ? "Disconnect Validator" : "Reset / Refresh QR"}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ) : null}

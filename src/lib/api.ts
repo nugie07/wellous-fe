@@ -528,3 +528,22 @@ export async function sendTestEmail(to: string, session?: AuthSession | null) {
     body: JSON.stringify({ to }),
   }, session)
 }
+
+// ── WABA Validator API ────────────────────────────────────────────────────────
+export async function getWabaValidatorStatus(session?: AuthSession | null) {
+  return request<{ connected: boolean }>("/v1/waba-validator/status", {
+    method: "GET",
+  }, session)
+}
+
+export async function getWabaValidatorQr(session?: AuthSession | null) {
+  return request<{ status: string, qr: string | null }>("/v1/waba-validator/qr", {
+    method: "GET",
+  }, session)
+}
+
+export async function logoutWabaValidator(session?: AuthSession | null) {
+  return request<{ success: boolean }>("/v1/waba-validator/logout", {
+    method: "POST",
+  }, session)
+}
