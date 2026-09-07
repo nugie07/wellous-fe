@@ -14,23 +14,7 @@ import { downloadBlobFile } from "@/lib/utils"
 const topNav = ["Dashboard", "Lead Tracker", "Global Settings"]
 
 type LeftMenuItem = "Unassigned List" | "Assigned List" | "Failed List" | "Export Data"
-type TabId = "All" | "D.V.N" | "Erojan" | "BLZ Pro" | "NOVIA"
-
-const TAB_PRODUCT_ID: Record<TabId, string | null> = {
-  All: null,
-  "D.V.N": "dvn",
-  Erojan: "erojan",
-  "BLZ Pro": "blz_pro",
-  NOVIA: "novia",
-}
-
-const TAB_COLORS: Record<TabId, string> = {
-  All: "#e5e7eb",
-  "D.V.N": "#fee4e7",
-  Erojan: "#face34",
-  "BLZ Pro": "#efceb3",
-  NOVIA: "#f2e4ff",
-}
+type TabId = string
 
 type LeadTrackerPageProps = {
   onLogout: () => void
@@ -49,7 +33,7 @@ function productLabel(productId: string, products: ProductItem[]) {
 export default function LeadTrackerPage({ onLogout, navigate }: LeadTrackerPageProps) {
   const session = getStoredAuthSession()
   const [leftMenu, setLeftMenu] = useState<LeftMenuItem>("Unassigned List")
-  const [activeTab, setActiveTab] = useState<TabId>("All")
+  const [activeTab, setActiveTab] = useState<string>("All")
   const [search, setSearch] = useState("")
   const [page, setPage] = useState(1)
   const [assignAllModalOpen, setAssignAllModalOpen] = useState(false)
@@ -183,13 +167,20 @@ export default function LeadTrackerPage({ onLogout, navigate }: LeadTrackerPageP
     { id: "Export Data", label: "Export Data", icon: <FileDown className="h-5 w-5 shrink-0" />, count: 0 },
   ]
 
-  const tabs: { id: TabId; label: string }[] = [
-    { id: "All", label: "All" },
-    { id: "D.V.N", label: "D.V.N" },
-    { id: "Erojan", label: "Erojan" },
-    { id: "BLZ Pro", label: "BLZ Pro" },
-    { id: "NOVIA", label: "NOVIA" },
-  ]
+  const tabs = useMemo(() => {
+    return [
+      { id: "All", label: "All" },
+      ...products.map((p) => ({ id: p.id, label: p.name })),
+    ]
+  }, [products])
+
+  const TAB_COLORS = useMemo(() => {
+    const colors: Record<string, string> = { All: "#e5e7eb" }
+    products.forEach((p) => {
+      colors[p.id] = p.color_hex || "#e5e7eb"
+    })
+    return colors
+  }, [products])
 
   const filteredLeads = useMemo(() => {
     const remarkEmpty = (item: LeadItem) => item.remark == null || String(item.remark).trim() === ""
@@ -199,7 +190,7 @@ export default function LeadTrackerPage({ onLogout, navigate }: LeadTrackerPageP
     if (leftMenu === "Failed List") list = list.filter((item) => item.status === "Unassigned" && !remarkEmpty(item))
 
     if (leftMenu === "Assigned List" && activeTab !== "All") {
-      list = list.filter((item) => item.product_id === TAB_PRODUCT_ID[activeTab])
+      list = list.filter((item) => item.product_id === activeTab)
     }
 
     if (!search.trim()) return list
@@ -282,7 +273,6 @@ export default function LeadTrackerPage({ onLogout, navigate }: LeadTrackerPageP
       return
     }
 
-    const vendorIndexByProduct = new Map<string, number>()
     let skippedLeads = 0
     const assignments = unassignedLeads.flatMap((lead) => {
       const productEligibleVendors = vendors.filter(
@@ -294,12 +284,9 @@ export default function LeadTrackerPage({ onLogout, navigate }: LeadTrackerPageP
         return []
       }
 
-      const nextIndex = vendorIndexByProduct.get(lead.product_id) ?? 0
-      vendorIndexByProduct.set(lead.product_id, nextIndex + 1)
-
       return [{
         lead_id: lead.lead_id,
-        vendor_id: productEligibleVendors[nextIndex % productEligibleVendors.length].id,
+        vendor_id: "", // Diberikan kosong agar backend yang menentukan secara round-robin global
       }]
     })
 
